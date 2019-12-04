@@ -8,7 +8,8 @@ standard_library.install_aliases()  # NOQA
 
 import argparse
 import json
-import os
+import operator
+from operator import xor
 
 
 import chainer
@@ -20,7 +21,6 @@ import gym
 import gym.wrappers
 import numpy as np
 
-import demo_parser
 
 import chainerrl
 from chainerrl.action_value import DiscreteActionValue
@@ -32,11 +32,13 @@ from chainerrl import links
 from chainerrl import misc
 from chainerrl.q_functions import DuelingDQN
 from chainerrl import replay_buffer
-
 from chainerrl.wrappers import atari_wrappers
 from chainerrl.wrappers import score_mask_atari
 from chainerrl.wrappers.trex_reward import TREXNet
 from chainerrl.wrappers.trex_reward import TREXReward
+
+import demo_parser
+
 
 class SingleSharedBias(chainer.Chain):
     """Single shared bias used in the Double DQN paper.
@@ -155,8 +157,10 @@ def main():
                         help='Mask when you render.')
     parser.add_argument('--trex-steps', type=int, default=30000,
                         help='Number of TREX updates.')
-    parser.add_argument('--gc-loc', type=str, required=True,
+    parser.add_argument('--gc-loc', type=str,
                         help='Atari Grand Challenge Data location.')
+    parser.add_argument('--load-demos', type=str, 
+                        help='Location of demonstrations pickle file.')
     args = parser.parse_args()
 
     import logging
@@ -185,9 +189,14 @@ def main():
             # Randomize actions like epsilon-greedy in evaluation as well
             env = chainerrl.wrappers.RandomizeAction(env, args.eval_epsilon)
         else:
-            demo_extractor = demo_parser.AtariGrandChallengeParser(
-                args.gc_loc, env, args.outdir)
-            episodes = demo_extractor.episodes
+            assert xor(bool(args.gc_loc), bool(args.load_demos)), \
+                "Must specify exactly one of the location of Atari Grand " + \
+                "Challenge dataset or the location of demonstrations " + \
+                "stored in a pickle file."
+            if args.gc_loc
+                demo_extractor = demo_parser.AtariGrandChallengeParser(
+                    args.gc_loc, env, args.outdir)
+                episodes = demo_extractor.episodes
             # Sort episodes by ground truth ranking
             # episodes contain transitions of (obs, a, r, new_obs, done, info)
             ranked_episodes = sorted(episodes,
