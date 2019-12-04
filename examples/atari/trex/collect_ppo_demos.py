@@ -54,10 +54,10 @@ def main():
                         help='Monitor env. Videos and additional information'
                              ' are saved as output files.')
     parser.add_argument('--checkpoint-frequency', type=int,
-                        default=None,
+                        required=True,
                         help='Frequency with which networks were checkpointed.')
     parser.add_argument('--total-length', type=int,
-                        default=None,
+                        required=True,
                         help='Total length for which networks were checkpointed.')
     args = parser.parse_args()
 
