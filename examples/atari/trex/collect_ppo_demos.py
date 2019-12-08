@@ -142,7 +142,7 @@ def main():
     checkpoint_freq = args.checkpoint_frequency
     num = checkpoint_freq
     outdirs = []
-    while num < args.total_length:
+    while num <= args.total_length:
         checkpoint = os.path.join(args.load, str(num) + "_checkpoint")
         agent.load(checkpoint)
         num += checkpoint_freq
@@ -155,19 +155,26 @@ def main():
                                            steps=None,
                                            episodes=5,
                                            outdir=outdir,
-                                           max_episode_len=None)
+                                           max_episode_len=27000)
     from chainerrl import demonstration
     episodes = []
     for outdir in outdirs:
         dataset = chainer.datasets.open_pickle_dataset(os.path.join(outdir, "demos.pickle"))
         episodes.extend(demonstration.extract_episodes(dataset))
 
+    print("total episodes collected: " + str(len(episodes)))
     # bundle all the demonstrations together
     with chainer.datasets.open_pickle_dataset_writer(
         os.path.join(args.outdir, "demos.pickle")) as dataset:
         for episode in episodes:
             for entry in episode:
-                dataset.write(entry)
+                obs = entry["obs"]
+                a = entry["action"]
+                r = entry["reward"]
+                new_obs = entry["new_obs"]
+                done = entry["done"]
+                info = entry["info"]
+                dataset.write((obs, a, r, new_obs, done, info))
 
 if __name__ == '__main__':
     main()

@@ -10,6 +10,7 @@ import argparse
 import json
 import operator
 from operator import xor
+import os
 
 
 import chainer
@@ -89,13 +90,8 @@ def parse_agent(agent):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='SpaceInvadersNoFrameskip-v4',
-                        choices=['SpaceInvadersNoFrameskip-v4',
-                                 'MontezumaRevengeNoFrameskip-v4',
-                                 'MsPacmanNoFrameskip-v4',
-                                 'QbertNoFrameskip-v4',
-                                 'VideoPinballNoFrameskip-v4'
-                                 ],
+    parser.add_argument('--env', type=str,
+                        default='SpaceInvadersNoFrameskip-v4',
                         help='OpenAI Atari domain to perform algorithm on.')
     parser.add_argument('--outdir', type=str, default='results',
                         help='Directory path to save output files.'
@@ -176,6 +172,21 @@ def main():
     args.outdir = experiments.prepare_output_dir(args, args.outdir)
     print('Output files are saved in {}'.format(args.outdir))
 
+    assert xor(bool(args.gc_loc), bool(args.load_demos)), \
+        "Must specify exactly one of the location of Atari Grand " + \
+        "Challenge dataset or the location of demonstrations " + \
+        "stored in a pickle file."
+    if args.gc_loc:
+        assert args.env in ['SpaceInvadersNoFrameskip-v4',
+                            'MontezumaRevengeNoFrameskip-v4',
+                            'MsPacmanNoFrameskip-v4',
+                            'QbertNoFrameskip-v4',
+                            'VideoPinballNoFrameskip-v4'
+                            ]
+    else:
+        # TODO: add asserts for the other envs
+        assert True
+
     def make_env(test):
         # Use different random seeds for train and test envs
         env_seed = test_seed if test else train_seed
@@ -189,16 +200,16 @@ def main():
             # Randomize actions like epsilon-greedy in evaluation as well
             env = chainerrl.wrappers.RandomizeAction(env, args.eval_epsilon)
         else:
-            assert xor(bool(args.gc_loc), bool(args.load_demos)), \
-                "Must specify exactly one of the location of Atari Grand " + \
-                "Challenge dataset or the location of demonstrations " + \
-                "stored in a pickle file."
-            if args.gc_loc
+            if args.gc_loc:
                 demo_extractor = demo_parser.AtariGrandChallengeParser(
                     args.gc_loc, env, args.outdir)
-                episodes = demo_extractor.episodes
+            else:
+                demo_extractor = demo_parser.ChainerRLAtariDemoParser(
+                    args.load_demos, env, 12)
+            episodes = demo_extractor.episodes
             # Sort episodes by ground truth ranking
             # episodes contain transitions of (obs, a, r, new_obs, done, info)
+            # redundance for sanity - demoparser should return sorted
             ranked_episodes = sorted(episodes,
                                      key=lambda ep:sum([ep[i]['reward'] for i in range(len(ep))]))
             episode_rewards = [sum([episode[i]['reward']  \

@@ -27,7 +27,7 @@ def make_atari(env_id, max_frames=30 * 60 * 60, mask_render=False):
 
 
 class AtariMask():
-    def __init__(self, env):
+    def __init__(self, env, height=210, width=160):
         if "SpaceInvadersNoFrameskip" in env.spec.id:
             self.mask = self.mask_space_invaders
         elif "PongNoFrameskip" in env.spec.id:
@@ -54,6 +54,9 @@ class AtariMask():
             assert False, "Not a supported env"
             self.mask = lambda x: x
 
+        self.h_ratio = 210/height
+        self.w_ratio = 160/width
+
     def __call__(self, x):
         return self.mask(x)
 
@@ -61,58 +64,76 @@ class AtariMask():
         mask_obs = obs
         # mask out score
         # TODO: check whether spaceship comes
-        mask_obs[0:20] = 0
+        mask_obs[0:int(20/self.h_ratio)] = 0
         return mask_obs
 
     def mask_pong(self, obs):
         mask_obs = obs
-        mask_obs[0:21] = 0
+        mask_obs[0:int(21/self.h_ratio)] = 0
         return mask_obs
 
     def mask_breakout(self, obs):
         mask_obs = obs
-        mask_obs[0:15] = 0
+        mask_obs[0:int(15/self.h_ratio)] = 0
         return mask_obs
 
     def mask_enduro(self, obs):
         mask_obs = obs
-        mask_obs[178:] = 0
+        mask_obs[int(178//self.h_ratio):] = 0
         return mask_obs
 
     def mask_seaquest(self, obs):
         mask_obs = obs
-        mask_obs[0:17] = 0
+        mask_obs[0:int(17/self.h_ratio)] = 0
         return mask_obs
 
     def mask_qbert(self, obs):
         mask_obs = obs
-        mask_obs[0:13] = 0
+        mask_obs[0:int(13/self.h_ratio)] = 0
         return mask_obs
 
     def mask_beam_rider(self, obs):
         mask_obs = obs
-        mask_obs[0:18] = 0
+        mask_obs[0:int(18/self.h_ratio)] = 0
         return mask_obs
 
     def mask_hero(self, obs):
         mask_obs = obs
-        mask_obs[179:] = 0
+        mask_obs[int(179/self.h_ratio):] = 0
         return mask_obs
 
     def mask_revenge(self, obs):
         mask_obs = obs
-        mask_obs[0:14] = 0
+        mask_obs[0:int(14/self.h_ratio)] = 0
         return mask_obs
 
     def mask_ms_pacman(self, obs):
         mask_obs = obs
-        mask_obs[187:] = 0
+        mask_obs[int(187/self.h_ratio):] = 0
         return mask_obs
 
     def mask_pinball(self, obs):
         mask_obs = obs
-        mask_obs[29:39, 64:156] = 0
+        mask_obs[int(29/self.h_ratio):int(39/self.h_ratio),
+                 int(64/self.w_ratio):int(156/self.w_ratio)] = 0
         return mask_obs
+
+    # TODO
+    def mask_freeway(self, obs):
+        mask_obs = obs
+        return mask_obs
+
+    def mask_assault(self, obs):
+        mask_obs = obs
+        return mask_obs 
+
+    def mask_boxing(self, obs):
+        mask_obs = obs
+        return mask_obs 
+
+    def mask_stargunner(self, obs):
+        mask_obs = obs
+        return mask_obs 
 
 class ScoreMaskEnv(gym.Wrapper):
     def __init__(self, env, mask_render):
