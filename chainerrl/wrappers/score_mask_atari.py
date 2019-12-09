@@ -50,8 +50,16 @@ class AtariMask():
             self.mask = self.mask_ms_pacman
         elif "VideoPinballNoFrameskip" in env.spec.id:
             self.mask = self.mask_pinball
+        elif "FreewayNoFrameskip" in env.spec.id:
+            self.mask = self.mask_freeway
+        elif "AssaultNoFrameskip" in env.spec.id:
+            self.mask = self.mask_assault
+        elif "BoxingNoFrameskip" in env.spec.id:
+            self.mask = self.mask_boxing
+        elif "StarGunnerNoFrameskip" in env.spec.id:
+            self.mask = self.mask_star_gunner
         else:
-            assert False, "Not a supported env"
+            assert False, env.spec.id + " is not a supported env"
             self.mask = lambda x: x
 
         self.h_ratio = 210/height
@@ -118,21 +126,24 @@ class AtariMask():
                  int(64/self.w_ratio):int(156/self.w_ratio)] = 0
         return mask_obs
 
-    # TODO
     def mask_freeway(self, obs):
         mask_obs = obs
+        mask_obs[0:int(13/self.h_ratio)] = 0
         return mask_obs
 
     def mask_assault(self, obs):
         mask_obs = obs
+        mask_obs[int(39/self.h_ratio):int((47)/self.h_ratio)] = 0
         return mask_obs 
 
     def mask_boxing(self, obs):
         mask_obs = obs
+        mask_obs[0:int((12)/self.h_ratio)] = 0
         return mask_obs 
 
-    def mask_stargunner(self, obs):
+    def mask_star_gunner(self, obs):
         mask_obs = obs
+        mask_obs[0:int((21)/self.h_ratio)] = 0
         return mask_obs 
 
 class ScoreMaskEnv(gym.Wrapper):
