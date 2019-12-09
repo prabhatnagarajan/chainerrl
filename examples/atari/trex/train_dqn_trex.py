@@ -184,8 +184,21 @@ def main():
                             'VideoPinballNoFrameskip-v4'
                             ]
     else:
-        # TODO: add asserts for the other envs
-        assert True
+        assert args.env in ['SpaceInvadersNoFrameskip-v4',
+                            'PongNoFrameskip-v4',
+                            'BreakoutNoFrameskip-v4',
+                            'EnduroNoFrameskip-v4',
+                            'SeaquestNoFrameskip-v4',
+                            'QbertNoFrameskip-v4',
+                            'BeamRiderNoFrameskip-v4',
+                            'HeroNoFrameskip-v4',
+                            'MontezumaRevengeNoFrameskip-v4',
+                            'MsPacmanNoFrameskip-v4',
+                            'VideoPinballNoFrameskip-v4',
+                            'FreewayNoFrameskip-v4',
+                            'AssaultNoFrameskip-v4',
+                            'BoxingNoFrameskip-v4',
+                            'StarGunnerNoFrameskip-v4']
 
     def make_env(test):
         # Use different random seeds for train and test envs

@@ -60,7 +60,6 @@ class AtariMask():
             self.mask = self.mask_star_gunner
         else:
             assert False, env.spec.id + " is not a supported env"
-            self.mask = lambda x: x
 
         self.h_ratio = 210/height
         self.w_ratio = 160/width

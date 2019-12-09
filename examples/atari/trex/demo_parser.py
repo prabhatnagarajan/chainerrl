@@ -269,6 +269,8 @@ class ChainerRLAtariDemoParser():
 
         dataset = chainer.datasets.open_pickle_dataset(demo_pickle_file)
         unmasked_episodes = demonstration.extract_episodes(dataset)
+        print("Number of demonstrations: " + str(len(unmasked_episodes)))
+        assert len(unmasked_episodes) >= num_demos
         masked_episodes = []
         for episode in unmasked_episodes:
             masked_episode = self.preprocess(episode)
