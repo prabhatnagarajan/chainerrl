@@ -271,17 +271,37 @@ class ChainerRLAtariDemoParser():
         unmasked_episodes = demonstration.extract_episodes(dataset)
         print("Number of demonstrations: " + str(len(unmasked_episodes)))
         assert len(unmasked_episodes) >= num_demos
+        selected_demos = self.select_demos(unmasked_episodes, num_demos)
         # TODO: select the demos to preprocess
         masked_episodes = []
-        for episode in unmasked_episodes:
+        for episode in selected_demos:
             masked_episode = self.preprocess(episode)
             masked_episodes.append(masked_episode)
         self.episodes = masked_episodes
 
     def select_demos(self, episodes, num_demos):
-        # check and remove duplicates
-        # ensure that after duplicate removal, we have adequately many demos
-        # return those demos
+        print("Selecting demonstrations...")
+        total_rewards = []
+        for episode in episodes:
+            ep_rewards = [transition['reward'] for transition in episode]
+            total_reward = sum(ep_rewards)
+            total_rewards.append(total_reward)
+        print(total_rewards)
+        eps_and_rewards = zip(episodes, total_rewards)
+        # select episodes with unique scores,
+        # preferring episodes earlier in list
+        unique_scores = set()
+        unique_score_episodes = []
+        for ep, score in eps_and_rewards:
+            if score not in unique_scores:
+                unique_scores.add(score)
+                unique_score_episodes.append((ep, score))
+        assert len(unique_score_episodes) >= num_demos, \
+            "not enough unique scores..."
+        # sort episodes
+        selected_episodes = [ep for ep, score in sorted(unique_score_episodes,
+                                                        key=lambda x: x[1])]
+        return selected_episodes
 
     def preprocess(self, episode):
         masked_episode = []
