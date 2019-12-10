@@ -327,14 +327,3 @@ class ChainerRLAtariDemoParser():
             masked_entry["new_obs"] = masked_new_obs
             masked_episode.append(masked_entry)
         return masked_episode
-
-def main():
-    env = "SpaceInvadersNoFrameskip-v4"
-    atari_env = gym.make(env)
-    src = "/Users/prabhat/Downloads/atari_v1/"
-    thing = AtariGrandChallengeParser(src, atari_env)
-    thing.parse_trajectory(351)
-
-
-if __name__ == '__main__':
-    main()
