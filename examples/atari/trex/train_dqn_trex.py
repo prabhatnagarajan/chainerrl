@@ -218,7 +218,7 @@ def main():
                     args.gc_loc, env, args.outdir)
             else:
                 demo_extractor = demo_parser.ChainerRLAtariDemoParser(
-                    args.load_demos, env, 12)
+                    args.load_demos, env, 12, args.outdir)
             episodes = demo_extractor.episodes
             # Sort episodes by ground truth ranking
             # episodes contain transitions of (obs, a, r, new_obs, done, info)
