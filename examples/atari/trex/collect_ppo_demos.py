@@ -59,6 +59,9 @@ def main():
     parser.add_argument('--total-length', type=int,
                         required=True,
                         help='Total length for which networks were checkpointed.')
+    parser.add_argument('--ep-per-checkpoint', type=int,
+                        default=1,
+                        help='Num episodes per checkpoint.')
     args = parser.parse_args()
 
     import logging
@@ -153,7 +156,7 @@ def main():
         experiments.collect_demonstrations(agent=agent,
                                            env=env,
                                            steps=None,
-                                           episodes=5,
+                                           episodes=args.ep_per_checkpoint,
                                            outdir=outdir,
                                            max_episode_len=27000)
     from chainerrl import demonstration

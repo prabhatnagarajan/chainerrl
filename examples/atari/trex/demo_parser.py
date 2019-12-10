@@ -271,11 +271,17 @@ class ChainerRLAtariDemoParser():
         unmasked_episodes = demonstration.extract_episodes(dataset)
         print("Number of demonstrations: " + str(len(unmasked_episodes)))
         assert len(unmasked_episodes) >= num_demos
+        # TODO: select the demos to preprocess
         masked_episodes = []
         for episode in unmasked_episodes:
             masked_episode = self.preprocess(episode)
             masked_episodes.append(masked_episode)
         self.episodes = masked_episodes
+
+    def select_demos(self, episodes, num_demos):
+        # check and remove duplicates
+        # ensure that after duplicate removal, we have adequately many demos
+        # return those demos
 
     def preprocess(self, episode):
         masked_episode = []
