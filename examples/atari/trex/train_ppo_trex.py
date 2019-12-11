@@ -158,7 +158,7 @@ def main():
                      ranked_demos=demo_dataset,
                      steps=args.trex_steps,
                      network=TREXNet(),
-                     train_network=True,
+                     train_network=False if args.load_trex,
                      gpu=args.gpu,
                      outdir=args.outdir,
                      save_network=True)
@@ -178,27 +178,6 @@ def main():
         )
         env.seed(env_seed)
         if not test:
-            # if idx == 0:
-            #     if args.gc_loc:
-            #         demo_extractor = demo_parser.AtariGrandChallengeParser(
-            #                         args.gc_loc, env, args.outdir)
-            #     else:
-            #         demo_extractor = demo_parser.ChainerRLAtariDemoParser(
-            #                         args.load_demos, env, 12, args.outdir)
-            #     episodes = demo_extractor.episodes
-            #     # Sort episodes by ground truth ranking
-            #     # episodes contain transitions of (obs, a, r, new_obs, done, info)
-            #     # redundance for sanity - demoparser should return sorted
-            #     ranked_episodes = sorted(episodes,
-            #                              key=lambda ep:sum([ep[i]['reward'] for i in range(len(ep))]))
-            #     episode_rewards = [sum([episode[i]['reward']  \
-            #                        for i in range(len(episode))]) \
-            #                        for episode in ranked_episodes]
-            #     demo_dataset = demonstration.RankedDemoDataset(ranked_episodes)
-            #     assert sorted(episode_rewards) == episode_rewards
-            #     if args.load_trex:
-            #         from chainer import serializers
-            #         serializers.load_npz(args.load_trex, trex_network)
             env = TREXReward(env=env,
                              ranked_demos=demo_dataset,
                              steps=args.trex_steps,
