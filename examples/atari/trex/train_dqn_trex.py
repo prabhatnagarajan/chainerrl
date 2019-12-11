@@ -239,7 +239,7 @@ def main():
                              ranked_demos=demo_dataset,
                              steps=args.trex_steps,
                              network=network,
-                             train_network=(False if args.load_trex),
+                             train_network=(False if args.load_trex else True),
                              gpu=args.gpu,
                              outdir=args.outdir,
                              save_network=True)
