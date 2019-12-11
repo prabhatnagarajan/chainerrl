@@ -76,6 +76,7 @@ class TREXReward(gym.Wrapper):
                  opt=optimizers.Adam(alpha=0.00005),
                  sample_live=True,
                  network=TREXNet(),
+                 train_network=True,
                  gpu=None,
                  outdir=None,
                  save_network=False):
@@ -83,8 +84,7 @@ class TREXReward(gym.Wrapper):
         self.ranked_demos = ranked_demos
         self.steps = steps
         self.trex_network = network
-        self.opt = opt
-        self.opt.setup(self.trex_network)
+        self.train_network = train_network
         self.training_observations = []
         self.training_labels = []
         self.prev_reward = None
@@ -94,12 +94,16 @@ class TREXReward(gym.Wrapper):
         self.num_sub_trajs = num_sub_trajs
         self.sample_live = sample_live
         self.outdir = outdir
-        self.save_network = save_network
         self.examples = []       
-        if gpu is not None and gpu >= 0:
-            cuda.get_device(gpu).use()
-            self.trex_network.to_gpu(device=gpu)
-        self._train()
+        if self.train_network:
+            self.opt = opt
+            self.opt.setup(self.trex_network)
+            if gpu is not None and gpu >= 0:
+                cuda.get_device(gpu).use()
+                self.trex_network.to_gpu(device=gpu)
+            self.save_network = save_network
+            self._train()
+
 
     def step(self, action):
         observation, reward, done, info = self.env.step(action)

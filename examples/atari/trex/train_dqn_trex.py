@@ -102,7 +102,6 @@ def main():
                         help='GPU to use, set to -1 if no GPU.')
     parser.add_argument('--demo', action='store_true', default=False)
     parser.add_argument('--load', type=str, default=None)
-    parser.add_argument('--load-trex', type=str, default=None)
     parser.add_argument('--final-exploration-frames',
                         type=int, default=10 ** 6,
                         help='Timesteps after which we stop ' +
@@ -149,6 +148,8 @@ def main():
                         help='Learning rate.')
     parser.add_argument('--prioritized', action='store_true', default=False,
                         help='Use prioritized experience replay.')
+    # TREX arguments
+    parser.add_argument('--load-trex', type=str, default=None)
     parser.add_argument('--mask-render', action='store_true', default=False,
                         help='Mask when you render.')
     parser.add_argument('--trex-steps', type=int, default=30000,
@@ -237,7 +238,7 @@ def main():
             env = TREXReward(env=env,
                              ranked_demos=demo_dataset,
                              steps=args.trex_steps,
-                             network=TREXNet(),
+                             network=network,
                              gpu=args.gpu,
                              outdir=args.outdir,
                              save_network=True)
