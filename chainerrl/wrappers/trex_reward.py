@@ -19,6 +19,7 @@ import gym
 import numpy as np
 
 from chainerrl.misc.batch_states import batch_states
+from pdb import set_trace
 
 def subseq(seq, subseq_len, start):
     return seq[start: start + subseq_len]
@@ -46,14 +47,13 @@ class TREXNet(chainer.ChainList):
             h = F.leaky_relu(layer(h))
         return h
 
-
-class TREXReward(gym.Wrapper):
+class TREXReward():
     """Implements Trajectory-ranked Reward EXtrapolation (TREX):
 
     https://arxiv.org/abs/1904.06387.
 
     Args:
-        env: a ScoreMaskEnv
+        env: an Env
         ranked_demos (RankedDemoDataset): A list of ranked demonstrations
         steps: number of gradient steps
         sub_traj_len: a tuple containing (min, max) traj length to sample
@@ -67,7 +67,7 @@ class TREXReward(gym.Wrapper):
 
     """
 
-    def __init__(self, env,
+    def __init__(self,
                  ranked_demos,
                  steps=30000,
                  num_sub_trajs=12800,
@@ -79,8 +79,8 @@ class TREXReward(gym.Wrapper):
                  train_network=True,
                  gpu=None,
                  outdir=None,
+                 phi=lambda x: x,
                  save_network=False):
-        super().__init__(env)
         self.ranked_demos = ranked_demos
         self.steps = steps
         self.trex_network = network
@@ -94,7 +94,8 @@ class TREXReward(gym.Wrapper):
         self.num_sub_trajs = num_sub_trajs
         self.sample_live = sample_live
         self.outdir = outdir
-        self.examples = []       
+        self.examples = []      
+        self.phi = phi 
         if self.train_network:
             self.opt = opt
             self.opt.setup(self.trex_network)
@@ -103,15 +104,8 @@ class TREXReward(gym.Wrapper):
                 self.trex_network.to_gpu(device=gpu)
             self.save_network = save_network
             self._train()
+        self.xp = self.trex_network.xp
 
-
-    def step(self, action):
-        observation, reward, done, info = self.env.step(action)
-        obs = batch_states([observation], self.trex_network.xp, self._phi)
-        with chainer.no_backprop_mode():
-            trex_reward = F.sigmoid(self.trex_network(obs)).item()
-        info["true_reward"] = reward
-        return observation, trex_reward, done, info
 
     def create_example(self):
         '''Creates a training example.'''
@@ -163,9 +157,9 @@ class TREXReward(gym.Wrapper):
     def _compute_loss(self, batch):
         xp = self.trex_network.xp
         preprocessed = {
-            'i' : [batch_states([transition["obs"] for transition in example[0]], xp, self._phi)
+            'i' : [batch_states([transition["obs"] for transition in example[0]], xp, self.phi)
                                for example in batch],
-            'j' : [batch_states([transition["obs"] for transition in example[1]], xp, self._phi)
+            'j' : [batch_states([transition["obs"] for transition in example[1]], xp, self.phi)
                                            for example in batch],
             'label' : xp.array([example[2] for example in batch])
         }
@@ -193,8 +187,32 @@ class TREXReward(gym.Wrapper):
         if self.save_network:
             serializers.save_npz(os.path.join(self.outdir, 'reward_net.model'),
                                  self.trex_network)
+    def __call__(self, x):
+        return self.trex_network(x)
 
-        # at the end save the network
+class TREXRewardEnv(gym.Wrapper):
+    """Environment Wrapper for neural network reward:
 
-    def _phi(self, x):
-        return np.asarray(x, dtype=np.float32) / 255
+    Args:
+        env: an Env
+        network: A reward Network
+
+    Attributes:
+        trex_network: Reward network
+
+    """
+
+    def __init__(self, env,
+                 trex_network):
+        super().__init__(env)
+        self.trex_network = trex_network
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        obs = batch_states([observation], self.trex_network.xp,
+                          self.trex_network.phi)
+        with chainer.no_backprop_mode():
+            inverse_reward = F.sigmoid(self.trex_network(obs)).item()
+        info["true_reward"] = reward
+        return observation, inverse_reward, done, info
+

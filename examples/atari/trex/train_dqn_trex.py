@@ -37,6 +37,7 @@ from chainerrl.wrappers import atari_wrappers
 from chainerrl.wrappers import score_mask_atari
 from chainerrl.wrappers.trex_reward import TREXNet
 from chainerrl.wrappers.trex_reward import TREXReward
+from chainerrl.wrappers.trex_reward import TREXRewardEnv
 
 import demo_parser
 
@@ -201,6 +202,10 @@ def main():
                             'BoxingNoFrameskip-v4',
                             'StarGunnerNoFrameskip-v4']
 
+    def phi(x):
+        # Feature extractor
+        return np.asarray(x, dtype=np.float32) / 255
+
     def make_env(test):
         # Use different random seeds for train and test envs
         env_seed = test_seed if test else train_seed
@@ -235,14 +240,15 @@ def main():
             if args.load_trex:
                 from chainer import serializers
                 serializers.load_npz(args.load_trex, network)
-            env = TREXReward(env=env,
-                             ranked_demos=demo_dataset,
+            trex_reward = TREXReward(ranked_demos=demo_dataset,
                              steps=args.trex_steps,
                              network=network,
                              train_network=(False if args.load_trex else True),
                              gpu=args.gpu,
                              outdir=args.outdir,
+                             phi=phi,
                              save_network=True)
+            env = TREXRewardEnv(env=env, trex_network=trex_reward)
         if args.monitor:
             env = gym.wrappers.Monitor(
                 env, args.outdir,
@@ -288,10 +294,6 @@ def main():
             num_steps=args.num_step_return)
     else:
         rbuf = replay_buffer.ReplayBuffer(10 ** 6, args.num_step_return)
-
-    def phi(x):
-        # Feature extractor
-        return np.asarray(x, dtype=np.float32) / 255
 
     Agent = parse_agent(args.agent)
     agent = Agent(q_func, opt, rbuf, gpu=args.gpu, gamma=0.99,
