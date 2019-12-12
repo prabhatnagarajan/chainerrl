@@ -34,6 +34,7 @@ from chainerrl.wrappers import atari_wrappers
 from chainerrl.wrappers import score_mask_atari
 from chainerrl.wrappers.trex_reward import TREXNet
 from chainerrl.wrappers.trex_reward import TREXReward
+from chainerrl.wrappers.trex_reward import TREXMultiprocessRewardEnv
 
 import demo_parser
 
@@ -126,6 +127,10 @@ def main():
     "Challenge dataset or the location of demonstrations " + \
     "stored in a pickle file."
 
+    def phi(x):
+        # Feature extractor
+        return np.asarray(x, dtype=np.float32) / 255
+
     env = atari_wrappers.wrap_deepmind(
             score_mask_atari.make_atari(args.env, max_frames=args.max_frames,
                                         mask_render=args.mask_render),
@@ -134,6 +139,7 @@ def main():
             flicker=args.flicker,
             frame_stack=not args.no_frame_stack,
         )
+
     if args.gc_loc:
         demo_extractor = demo_parser.AtariGrandChallengeParser(
                         args.gc_loc, env, args.outdir)
@@ -154,15 +160,14 @@ def main():
     if args.load_trex:
         from chainer import serializers
         serializers.load_npz(args.load_trex, trex_network)
-    env = TREXReward(env=env,
-                     ranked_demos=demo_dataset,
+    trex_reward = TREXReward(ranked_demos=demo_dataset,
                      steps=args.trex_steps,
                      network=TREXNet(),
                      train_network=(False if args.load_trex else True),
                      gpu=args.gpu,
                      outdir=args.outdir,
+                     phi=phi,
                      save_network=True)
-    trex_network = env.trex_network
 
     def make_env(idx, test):
         # Use different random seeds for train and test envs
@@ -177,15 +182,6 @@ def main():
             frame_stack=not args.no_frame_stack,
         )
         env.seed(env_seed)
-        if not test:
-            env = TREXReward(env=env,
-                             ranked_demos=demo_dataset,
-                             steps=args.trex_steps,
-                             network=trex_network,
-                             train_network=False,
-                             gpu=args.gpu,
-                             outdir=args.outdir)
-            # trex_network = env.trex_network
         if args.monitor:
             env = chainerrl.wrappers.Monitor(
                 env, args.outdir,
@@ -195,9 +191,15 @@ def main():
         return env
 
     def make_batch_env(test):
-        return chainerrl.envs.MultiprocessVectorEnv(
-            [(lambda: make_env(idx, test))
-             for idx, env in enumerate(range(args.num_envs))])
+        if test:
+            return chainerrl.envs.MultiprocessVectorEnv(
+                [(lambda: make_env(idx, test))
+                 for idx, env in enumerate(range(args.num_envs))])
+        else:
+            return TREXMultiprocessRewardEnv(
+                [(lambda: make_env(idx, test))
+                 for idx, env in enumerate(range(args.num_envs))],
+                 trex_reward)
 
     sample_env = make_env(0, test=False)
     print('Observation space', sample_env.observation_space)
@@ -256,10 +258,6 @@ def main():
     opt = chainer.optimizers.Adam(alpha=args.lr, eps=1e-5)
     opt.setup(model)
     opt.add_hook(chainer.optimizer.GradientClipping(0.5))
-
-    def phi(x):
-        # Feature extractor
-        return np.asarray(x, dtype=np.float32) / 255
 
     agent = PPO(
         model,

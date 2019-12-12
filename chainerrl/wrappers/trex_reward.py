@@ -18,8 +18,8 @@ from chainer import serializers
 import gym
 import numpy as np
 
+from chainerrl.envs import MultiprocessVectorEnv
 from chainerrl.misc.batch_states import batch_states
-from pdb import set_trace
 
 def subseq(seq, subseq_len, start):
     return seq[start: start + subseq_len]
@@ -216,3 +216,34 @@ class TREXRewardEnv(gym.Wrapper):
         info["true_reward"] = reward
         return observation, inverse_reward, done, info
 
+class TREXMultiprocessRewardEnv(MultiprocessVectorEnv):
+    """Environment Wrapper for neural network reward:
+
+    Args:
+        env: an Env
+        network: A reward Network
+
+    Attributes:
+        trex_network: Reward network
+
+    """
+
+    def __init__(self, env_fns,
+                 trex_network):
+        super().__init__(env_fns)
+        self.trex_network = trex_network
+
+
+    def step(self, actions):
+        self._assert_not_closed()
+        for remote, action in zip(self.remotes, actions):
+            remote.send(('step', action))
+        results = [remote.recv() for remote in self.remotes]
+        self.last_obs, rews, dones, infos = zip(*results)
+        obs = batch_states(self.last_obs, self.trex_network.xp,
+                          self.trex_network.phi)
+        trex_rewards = F.sigmoid(self.trex_network(obs))
+        trex_rewards = tuple(trex_rewards.array[:,0].tolist())
+        for i in range(len(rews)):
+            infos[i]["true_reward"] = rews[i]
+        return self.last_obs, trex_rewards, dones, infos

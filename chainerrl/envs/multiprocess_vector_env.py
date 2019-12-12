@@ -15,7 +15,6 @@ from cached_property import cached_property
 import numpy as np
 
 import chainerrl
-from pdb import set_trace
 
 def worker(remote, env_fn):
     # Ignore CTRL+C in the worker process
@@ -90,7 +89,6 @@ See https://github.com/numpy/numpy/issues/12793 for details.
             remote.send(('step', action))
         results = [remote.recv() for remote in self.remotes]
         self.last_obs, rews, dones, infos = zip(*results)
-        set_trace()
         return self.last_obs, rews, dones, infos
 
     def reset(self, mask=None):
