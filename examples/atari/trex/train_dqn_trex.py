@@ -200,7 +200,13 @@ def main():
                             'FreewayNoFrameskip-v4',
                             'AssaultNoFrameskip-v4',
                             'BoxingNoFrameskip-v4',
-                            'StarGunnerNoFrameskip-v4']
+                            'StarGunnerNoFrameskip-v4',
+                            'ZaxxonNoFrameskip-v4',
+                            'SkiingNoFrameskip-v4',
+                            'DemonAttackNoFrameskip-v4',
+                            'AsteroidsNoFrameskip-v4',
+                            'TennisNoFrameskip-v4',
+                            'IceHockeyNoFrameskip-v4']
 
     def phi(x):
         # Feature extractor

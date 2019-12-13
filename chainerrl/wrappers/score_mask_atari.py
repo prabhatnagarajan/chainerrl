@@ -58,6 +58,18 @@ class AtariMask():
             self.mask = self.mask_boxing
         elif "StarGunnerNoFrameskip" in env.spec.id:
             self.mask = self.mask_star_gunner
+        elif "ZaxxonNoFrameskip" in env.spec.id:
+            self.mask = self.mask_zaxxon
+        elif "SkiingNoFrameskip" in env.spec.id:
+            self.mask = self.mask_skiing
+        elif "DemonAttack" in env.spec.id:
+            self.mask = self.mask_demon_attack
+        elif "Asteroids" in env.spec.id:
+            self.mask = self.mask_asteroids
+        elif "Tennis" in env.spec.id:
+            self.mask = self.mask_tennis
+        elif "IceHockey" in env.spec.id:
+            self.mask = self.mask_ice_hockey
         else:
             assert False, env.spec.id + " is not a supported env"
 
@@ -143,7 +155,38 @@ class AtariMask():
     def mask_star_gunner(self, obs):
         mask_obs = obs
         mask_obs[0:int((21)/self.h_ratio)] = 0
-        return mask_obs 
+        return mask_obs
+
+    def mask_zaxxon(self, obs):
+        mask_obs = obs
+        mask_obs[0:int((18)/self.h_ratio)] = 0
+        return mask_obs
+
+    def mask_skiing(self, obs):
+        mask_obs = obs
+        mask_obs[0:int((48)/self.h_ratio)] = 0
+        return mask_obs
+
+    def mask_demon_attack(self, obs):
+        mask_obs = obs
+        mask_obs[0:int((16)/self.h_ratio)] = 0
+        return mask_obs
+
+    def mask_asteroids(self, obs):
+        mask_obs = obs
+        mask_obs[0:int((16)/self.h_ratio), 0:int((80)/self.w_ratio)] = 0
+        return mask_obs
+
+    def mask_tennis(self, obs):
+        mask_obs = obs
+        mask_obs[0:int((38)/self.h_ratio)] = 0
+        return mask_obs
+
+    def mask_ice_hockey(self, obs):
+        mask_obs = obs
+        mask_obs[int((14)/self.h_ratio):int((21)/self.h_ratio)] = 0
+        return mask_obs
+
 
 class ScoreMaskEnv(gym.Wrapper):
     def __init__(self, env, mask_render):

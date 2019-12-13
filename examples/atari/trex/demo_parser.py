@@ -18,8 +18,6 @@ cv2.ocl.setUseOpenCL(False)  # NOQA
 import gym
 import numpy as np
 
-from pdb import set_trace
-
 from chainerrl import demonstration
 from chainerrl.wrappers import atari_wrappers
 from chainerrl.wrappers.score_mask_atari import AtariMask
