@@ -20,6 +20,7 @@ import numpy as np
 
 from chainerrl.envs import MultiprocessVectorEnv
 from chainerrl.misc.batch_states import batch_states
+from chainerrl.wrappers import VectorFrameStack
 
 def subseq(seq, subseq_len, start):
     return seq[start: start + subseq_len]
@@ -247,3 +248,35 @@ class TREXMultiprocessRewardEnv(MultiprocessVectorEnv):
         for i in range(len(rews)):
             infos[i]["true_reward"] = rews[i]
         return self.last_obs, trex_rewards, dones, infos
+
+class TREXVectorEnv(VectorFrameStack):
+    """Environment Wrapper for vector of environments
+
+    to replace with a neural network reward.
+
+    Args:
+        mp_env: a MultiProcessVectorEnv
+        network: A reward Network
+
+    Attributes:
+        trex_network: Reward network
+
+    """
+
+    def __init__(self, env, k, stack_axis,
+                 trex_network):
+        super().__init__(env, k, stack_axis)
+        self.trex_network = trex_network
+
+
+    def step(self, actions):
+        batch_ob, rewards, dones, infos = self.env.step(actions)
+        for frames, ob in zip(self.frames, batch_ob):
+            frames.append(ob)
+        obs = self._get_ob()
+        processed_obs = batch_states(obs, self.trex_network.xp,
+                                     self.trex_network.phi)
+        trex_rewards = F.sigmoid(self.trex_network(processed_obs))
+        for i in range(len(rewards)):
+            infos[i]["true_reward"] = rewards[i]
+        return obs, trex_rewards, dones, infos
