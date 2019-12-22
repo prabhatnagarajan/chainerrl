@@ -138,6 +138,9 @@ def main():
                         help='Atari Grand Challenge Data location.')
     parser.add_argument('--load-demos', type=str, 
                         help='Location of demonstrations pickle file.')
+    # TREX extension argument
+    parser.add_argument('--shaped-reward', type=str, default=None)
+    parser.add_argument('--pretrain-steps', type=str, default=None)
     args = parser.parse_args()
     args = parser.parse_args()
 
@@ -227,7 +230,11 @@ def main():
         if test:
             vec_env = chainerrl.wrappers.VectorFrameStack(vec_env, 4)
         else:
-            vec_env = TREXVectorEnv(vec_env, 4, 0, trex_reward)
+            if not args.shaped_reward:
+                vec_env = TREXVectorEnv(vec_env, 4, 0, trex_reward)
+            else:
+                assert args.load_trex
+                vec_env = TREXShapedVectorEnv(TREXVectorEnv(vec_env, 4, 0, 0.99, trex_reward))
         return vec_env
 
     sample_env = make_env(0, test=False)

@@ -285,3 +285,54 @@ class TREXVectorEnv(VectorFrameStack):
         for i in range(len(rewards)):
             infos[i]["true_reward"] = rewards[i]
         return obs, trex_rewards, dones, infos
+
+class TREXShapedVectorEnv(VectorFrameStack):
+    """Environment Wrapper for vector of environments
+
+    to replace with a neural network reward.
+
+    Args:
+        env: a MultiProcessVectorEnv
+        k: Num frames to stack
+        stack_axis: axis to stack frames
+        trex_network: A reward network
+
+    Attributes:
+        trex_network: Reward network
+
+    """
+
+    def __init__(self, env, k, stack_axis, gamma
+                 trex_network):
+        super().__init__(env, k, stack_axis)
+        self.gamma = gamma
+        self.trex_network = trex_network
+
+    def step(self, actions):
+        batch_ob, rewards, dones, infos = self.env.step(actions)
+        for frames, ob in zip(self.frames, batch_ob):
+            frames.append(ob)
+        obs = self._get_ob()
+        processed_obs = batch_states(obs, self.trex_network.xp,
+                                     self.trex_network.phi)
+        trex_rewards = F.sigmoid(self.trex_network(processed_obs))
+        # convert variable([[r1],[r2], ...]) to tuple
+        trex_rewards = tuple(trex_rewards.array[:,0].tolist())
+        shaped_rewards = []
+        for env_id in range(len(rewards)):
+            shaped_rewards[env_id] = self.gamma * trex_rewards[env_id] - self.prev_trex_rewards[env_id]
+        shaped_rewards = tuple(shaped_rewards)
+        self.prev_trex_rewards = trex_rewards
+        for i in range(len(rewards)):
+            infos[i]["true_reward"] = rewards[i]
+            infos[i]["trex_reward"] = trex_rewards[i]
+            infos[i]["shaped_reward"] = shaped_rewards[i]
+        return obs, trex_rewards, dones, infos    
+
+    def reset(self, mask=None):
+        obs = VectorFrameStack.reset(self, mask)
+        processed_obs = batch_states(obs, self.trex_network.xp,
+                                     self.trex_network.phi)
+        self.prev_trex_rewards = F.sigmoid(self.trex_network(processed_obs))
+        self.prev_trex_rewards = tuple(self.prev_trex_rewards.array[:,0].tolist())
+        return obs
