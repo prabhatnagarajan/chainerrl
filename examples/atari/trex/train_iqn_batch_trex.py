@@ -35,51 +35,9 @@ from chainerrl.wrappers.trex_reward import TREXVectorEnv
 import demo_parser
 
 
-class SingleSharedBias(chainer.Chain):
-    """Single shared bias used in the Double DQN paper.
-
-    You can add this link after a Linear layer with nobias=True to implement a
-    Linear layer with a single shared bias parameter.
-
-    See http://arxiv.org/abs/1509.06461.
-    """
-
-    def __init__(self):
-        super().__init__()
-        with self.init_scope():
-            self.bias = chainer.Parameter(0, shape=1)
-
-    def __call__(self, x):
-        return x + F.broadcast_to(self.bias, x.shape)
-
-
-def parse_arch(arch, n_actions):
-    if arch == 'nature':
-        return links.Sequence(
-            links.NatureDQNHead(),
-            L.Linear(512, n_actions),
-            DiscreteActionValue)
-    elif arch == 'doubledqn':
-        return links.Sequence(
-            links.NatureDQNHead(),
-            L.Linear(512, n_actions, nobias=True),
-            SingleSharedBias(),
-            DiscreteActionValue)
-    elif arch == 'nips':
-        return links.Sequence(
-            links.NIPSDQNHead(),
-            L.Linear(256, n_actions),
-            DiscreteActionValue)
-    elif arch == 'dueling':
-        return DuelingDQN(n_actions)
-    else:
-        raise RuntimeError('Not supported architecture: {}'.format(arch))
-
-
 def parse_agent(agent):
-    return {'DQN': agents.DQN,
-            'DoubleDQN': agents.DoubleDQN,
-            'PAL': agents.PAL}[agent]
+    return {'IQN': chainerrl.agents.IQN,
+            'DoubleIQN': chainerrl.agents.DoubleIQN}[agent]
 
 
 def main():
@@ -113,8 +71,8 @@ def main():
     parser.add_argument('--no-clip-delta',
                         dest='clip_delta', action='store_false')
     parser.set_defaults(clip_delta=True)
-    parser.add_argument('--agent', type=str, default='DoubleDQN',
-                        choices=['DQN', 'DoubleDQN', 'PAL'])
+    parser.add_argument('--agent', type=str, default='DoubleIQN',
+                        choices=['IQN', 'DoubleIQN'])
     parser.add_argument('--logging-level', type=int, default=20,
                         help='Logging level. 10:DEBUG, 20:INFO etc.')
     parser.add_argument('--render', action='store_true', default=False,
@@ -141,7 +99,6 @@ def main():
     # TREX extension argument
     parser.add_argument('--shaped-reward', type=str, default=None)
     parser.add_argument('--pretrain-steps', type=str, default=None)
-    args = parser.parse_args()
     args = parser.parse_args()
 
     import logging
@@ -240,22 +197,34 @@ def main():
     sample_env = make_env(0, test=False)
 
     n_actions = sample_env.action_space.n
-    q_func = parse_arch(args.arch, n_actions)
-
-    if args.noisy_net_sigma is not None:
-        links.to_factorized_noisy(q_func, sigma_scale=args.noisy_net_sigma)
-        # Turn off explorer
-        explorer = explorers.Greedy()
+    q_func = chainerrl.agents.iqn.ImplicitQuantileQFunction(
+        psi=chainerrl.links.Sequence(
+            L.Convolution2D(None, 32, 8, stride=4),
+            F.relu,
+            L.Convolution2D(None, 64, 4, stride=2),
+            F.relu,
+            L.Convolution2D(None, 64, 3, stride=1),
+            F.relu,
+            functools.partial(F.reshape, shape=(-1, 3136)),
+        ),
+        phi=chainerrl.links.Sequence(
+            chainerrl.agents.iqn.CosineBasisLinear(64, 3136),
+            F.relu,
+        ),
+        f=chainerrl.links.Sequence(
+            L.Linear(None, 512),
+            F.relu,
+            L.Linear(None, n_actions),
+        ),
+    )
 
     # Draw the computational graph and save it in the output directory.
     chainerrl.misc.draw_computational_graph(
         [q_func(np.zeros((4, 84, 84), dtype=np.float32)[None])],
         os.path.join(args.outdir, 'model'))
 
-    # Use the same hyper parameters as the Nature paper's
-    opt = optimizers.RMSpropGraves(
-        lr=args.lr, alpha=0.95, momentum=0.0, eps=1e-2)
-
+    # Use the same hyper parameters as https://arxiv.org/abs/1710.10044
+    opt = chainer.optimizers.Adam(5e-5, eps=1e-2 / args.batch_size)
     opt.setup(q_func)
 
     # Select a replay buffer to use
