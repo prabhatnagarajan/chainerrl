@@ -55,24 +55,22 @@ def main():
                         type=int, default=10 ** 6)
     parser.add_argument('--final-epsilon', type=float, default=0.01)
     parser.add_argument('--eval-epsilon', type=float, default=0.001)
-    parser.add_argument('--noisy-net-sigma', type=float, default=None)
-    parser.add_argument('--arch', type=str, default='doubledqn',
-                        choices=['nature', 'nips', 'dueling', 'doubledqn'])
     parser.add_argument('--steps', type=int, default=5 * 10 ** 7)
     parser.add_argument('--max-frames', type=int,
                         default=30 * 60 * 60,  # 30 minutes with 60 fps
                         help='Maximum number of frames for each episode.')
     parser.add_argument('--replay-start-size', type=int, default=5 * 10 ** 4)
     parser.add_argument('--target-update-interval',
-                        type=int, default=3 * 10 ** 4)
-    parser.add_argument('--eval-interval', type=int, default=10 ** 5)
-    parser.add_argument('--update-interval', type=int, default=4)
-    parser.add_argument('--eval-n-runs', type=int, default=10)
-    parser.add_argument('--no-clip-delta',
-                        dest='clip_delta', action='store_false')
-    parser.set_defaults(clip_delta=True)
+                        type=int, default=10 ** 4)
     parser.add_argument('--agent', type=str, default='DoubleIQN',
                         choices=['IQN', 'DoubleIQN'])
+    parser.add_argument('--prioritized', action='store_true', default=False,
+                        help='Flag to use a prioritized replay buffer')
+    parser.add_argument('--num-step-return', type=int, default=1)
+    parser.add_argument('--eval-interval', type=int, default=250000)
+    parser.add_argument('--eval-n-steps', type=int, default=125000)
+    parser.add_argument('--update-interval', type=int, default=4)
+    parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--logging-level', type=int, default=20,
                         help='Logging level. 10:DEBUG, 20:INFO etc.')
     parser.add_argument('--render', action='store_true', default=False,
@@ -80,12 +78,16 @@ def main():
     parser.add_argument('--monitor', action='store_true', default=False,
                         help='Monitor env. Videos and additional information'
                              ' are saved as output files.')
-    parser.add_argument('--lr', type=float, default=2.5e-4,
-                        help='Learning rate')
-    parser.add_argument('--prioritized', action='store_true', default=False,
-                        help='Use prioritized experience replay.')
+    parser.add_argument('--batch-accumulator', type=str, default='mean',
+                        choices=['mean', 'sum'])
+    # IQN arguments
+    parser.add_argument('--quantile-thresholds-N', type=int, default=64)
+    parser.add_argument('--quantile-thresholds-N-prime', type=int, default=64)
+    parser.add_argument('--quantile-thresholds-K', type=int, default=32)
+    parser.add_argument('--n-best-episodes', type=int, default=200)
+    # Batch arguments
     parser.add_argument('--num-envs', type=int, default=1)
-    parser.add_argument('--n-step-return', type=int, default=1)
+
     # TREX arguments
     parser.add_argument('--load-trex', type=str, default=None)
     parser.add_argument('--mask-render', action='store_true', default=False,
@@ -212,8 +214,10 @@ def main():
     )
 
     # Draw the computational graph and save it in the output directory.
+    fake_obss = np.zeros((4, 84, 84), dtype=np.float32)[None]
+    fake_taus = np.zeros(32, dtype=np.float32)[None]
     chainerrl.misc.draw_computational_graph(
-        [q_func(np.zeros((4, 84, 84), dtype=np.float32)[None])],
+        [q_func(fake_obss)(fake_taus)],
         os.path.join(args.outdir, 'model'))
 
     # Use the same hyper parameters as https://arxiv.org/abs/1710.10044
@@ -222,15 +226,14 @@ def main():
 
     # Select a replay buffer to use
     if args.prioritized:
-        # Anneal beta from beta0 to 1 throughout training
         betasteps = args.steps / args.update_interval
         rbuf = replay_buffer.PrioritizedReplayBuffer(
-            10 ** 6, alpha=0.6, beta0=0.4, betasteps=betasteps,
-            num_steps=args.n_step_return,
-        )
+            10 ** 6, alpha=0.5, beta0=0.4, betasteps=betasteps,
+            num_steps=args.num_step_return)
     else:
         rbuf = replay_buffer.ReplayBuffer(
-            10 ** 6, num_steps=args.n_step_return)
+            10 ** 6,
+            num_steps=args.num_step_return)
 
     explorer = explorers.LinearDecayEpsilonGreedy(
         1.0, args.final_epsilon,
@@ -238,13 +241,17 @@ def main():
         lambda: np.random.randint(n_actions))
 
     Agent = parse_agent(args.agent)
-    agent = Agent(q_func, opt, rbuf, gpu=args.gpu, gamma=0.99,
-                  explorer=explorer, replay_start_size=args.replay_start_size,
-                  target_update_interval=args.target_update_interval,
-                  clip_delta=args.clip_delta,
-                  update_interval=args.update_interval,
-                  batch_accumulator='sum',
-                  phi=phi)
+    agent = Agent(
+        q_func, opt, rbuf, gpu=args.gpu, gamma=0.99,
+        explorer=explorer, replay_start_size=args.replay_start_size,
+        target_update_interval=args.target_update_interval,
+        update_interval=args.update_interval,
+        batch_accumulator=args.batch_accumulator,
+        phi=phi,
+        quantile_thresholds_N=args.quantile_thresholds_N,
+        quantile_thresholds_N_prime=args.quantile_thresholds_N_prime,
+        quantile_thresholds_K=args.quantile_thresholds_K,
+    )
 
     if args.load:
         agent.load(args.load)
@@ -253,8 +260,8 @@ def main():
         eval_stats = experiments.eval_performance(
             env=make_batch_env(test=True),
             agent=agent,
-            n_steps=None,
-            n_episodes=args.eval_n_runs)
+            n_steps=args.eval_n_steps,
+            n_episodes=None)
         print('n_runs: {} mean: {} median: {} stdev {}'.format(
             args.eval_n_runs, eval_stats['mean'], eval_stats['median'],
             eval_stats['stdev']))
@@ -264,14 +271,33 @@ def main():
             env=make_batch_env(test=False),
             eval_env=make_batch_env(test=True),
             steps=args.steps,
-            eval_n_steps=None,
-            eval_n_episodes=args.eval_n_runs,
+            eval_n_steps=args.eval_n_steps,
+            eval_n_episodes=None,
             eval_interval=args.eval_interval,
             outdir=args.outdir,
-            save_best_so_far_agent=False,
+            save_best_so_far_agent=True,
             log_interval=1000,
         )
 
+        dir_of_best_network = os.path.join(args.outdir, "best")
+        agent.load(dir_of_best_network)
+
+        # run 200 evaluation episodes, each capped at 30 mins of play
+        stats = experiments.evaluator.eval_performance(
+            env=eval_env,
+            agent=agent,
+            n_steps=None,
+            n_episodes=args.n_best_episodes,
+            max_episode_len=args.max_frames / 4,
+            logger=None)
+        with open(os.path.join(args.outdir, 'bestscores.json'), 'w') as f:
+            # temporary hack to handle python 2/3 support issues.
+            # json dumps does not support non-string literal dict keys
+            json_stats = json.dumps(stats)
+            print(str(json_stats), file=f)
+        print("The results of the best scoring network:")
+        for stat in stats:
+            print(str(stat) + ":" + str(stats[stat]))
 
 if __name__ == '__main__':
     main()
