@@ -307,7 +307,7 @@ def main():
             checkpoint_freq=args.checkpoint_frequency,
             eval_interval=args.eval_interval,
             log_interval=args.log_interval,
-            save_best_so_far_agent=False,
+            save_best_so_far_agent=True,
             step_hooks=step_hooks,
         )
 
