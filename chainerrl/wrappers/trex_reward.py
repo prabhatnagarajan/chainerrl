@@ -1,11 +1,4 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import division
-from __future__ import absolute_import
-from builtins import *  # NOQA
-from future import standard_library
-standard_library.install_aliases()  # NOQA
-
+import collections
 import os
 import random
 
@@ -97,7 +90,8 @@ class TREXReward():
         self.sample_live = sample_live
         self.outdir = outdir
         self.examples = []      
-        self.phi = phi 
+        self.phi = phi
+        self.running_losses = collections.deque([], maxlen=10)
         if self.train_network:
             self.opt = opt
             self.opt.setup(self.trex_network)
@@ -105,6 +99,8 @@ class TREXReward():
                 cuda.get_device(gpu).use()
                 self.trex_network.to_gpu(device=gpu)
             self.save_network = save_network
+            if self.save_network:
+                assert self.outdir
             self._train()
         self.xp = self.trex_network.xp
 
@@ -180,6 +176,10 @@ class TREXReward():
             batch = self.get_training_batch()
             # do updates
             loss = self._compute_loss(batch)
+            self.running_losses.append(loss.item())
+            if len(self.running_losses) == 10:
+                with open(os.path.join(self.outdir, 'trex_loss_info.txt'), 'a') as f:
+                    print(sum(self.running_losses)/10.0, file=f)
             self.trex_network.cleargrads()
             loss.backward()
             self.opt.update()
