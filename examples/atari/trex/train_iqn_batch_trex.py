@@ -7,6 +7,7 @@ from future import standard_library
 standard_library.install_aliases()  # NOQA
 import argparse
 import functools
+import json
 import os
 
 import chainer
@@ -284,7 +285,7 @@ def main():
 
         # run 200 evaluation episodes, each capped at 30 mins of play
         stats = experiments.evaluator.eval_performance(
-            env=eval_env,
+            env=make_batch_env(test=True),
             agent=agent,
             n_steps=None,
             n_episodes=args.n_best_episodes,
