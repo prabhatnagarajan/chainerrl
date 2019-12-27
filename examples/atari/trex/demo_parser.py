@@ -1,14 +1,6 @@
 """Portions of this file contains code modified from
 https://github.com/hiwonjoon/ICML2019-TREX, an MIT-licensed project.
 """
-
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from builtins import *  # NOQA
-from future import standard_library
-standard_library.install_aliases()  # NOQA
 import collections
 import os
 

@@ -5,13 +5,6 @@ This script collects demos of a PPO agent on Atari envs.
 To collect demos for  PPO for 10M timesteps on Breakout, run:
     python collect_demos_ppo.py
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from builtins import *  # NOQA
-from future import standard_library
-standard_library.install_aliases()  # NOQA
 import argparse
 import os
 
