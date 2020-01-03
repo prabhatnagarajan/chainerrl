@@ -48,17 +48,19 @@ class TREXReward():
     https://arxiv.org/abs/1904.06387.
 
     Args:
-        env: an Env
         ranked_demos (RankedDemoDataset): A list of ranked demonstrations
         steps: number of gradient steps
+        num_sub_trajs: Number of subtrajectories
         sub_traj_len: a tuple containing (min, max) traj length to sample
         traj_batch_size: num trajectory pairs to use per update
         opt: optimizer
+        sample_live (bool): whether to create examples as you sample
         network: A reward network to train
-
-    Attributes:
-        demos: A list of demonstrations
-        trex_network: Reward network
+        train_network (bool): whether to train the TREX network
+        gpu: the device
+        outdir: directory to output network and information,
+        phi: a preprocessing function
+        save_network: whether to save the T-REX network
 
     """
 
