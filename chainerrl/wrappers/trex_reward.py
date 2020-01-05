@@ -304,7 +304,7 @@ class TREXShapedVectorEnv(VectorFrameStack):
 
     """
 
-    def __init__(self, env, k, stack_axis, gamma
+    def __init__(self, env, k, stack_axis, gamma,gi
                  trex_network):
         super().__init__(env, k, stack_axis)
         self.gamma = gamma
