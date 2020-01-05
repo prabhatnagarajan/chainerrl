@@ -9,6 +9,7 @@ To train PPO using a recurrent model on a flickering Atari env, run:
     python train_ppo_ale.py --recurrent --flicker --no-frame-stack
 """
 import argparse
+import json
 import operator
 from operator import xor
 import os
@@ -55,6 +56,8 @@ def main():
                         help='Interval (in timesteps) between evaluation'
                              ' phases.')
     parser.add_argument('--eval-n-runs', type=int, default=10,
+                        help='Number of episodes ran in an evaluation phase.')
+    parser.add_argument('--n-best-episodes', type=int, default=200,
                         help='Number of episodes ran in an evaluation phase.')
     parser.add_argument('--demo', action='store_true', default=False,
                         help='Run demo episodes, not training.')
