@@ -10,14 +10,12 @@ from chainer import optimizers
 import numpy as np
 
 import chainerrl
-from chainerrl.action_value import DiscreteActionValue
 from chainerrl import agents
 from chainerrl import demonstration
 from chainerrl import experiments
 from chainerrl import explorers
 from chainerrl import links
 from chainerrl import misc
-from chainerrl.q_functions import DuelingDQN
 from chainerrl import replay_buffer
 
 from chainerrl.wrappers import atari_wrappers
