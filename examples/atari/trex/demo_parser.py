@@ -171,13 +171,15 @@ class AtariGrandChallengeParser():
         scores = [demo[1] for demo in demos]
         assert sorted(scores) == scores
         avg_score = sum(scores)/len(scores)
+        min_score = scores[0]
         max_score = scores[-1]
         with open(os.path.join(self.outdir, 'misc_info.txt'), 'a') as f:
             print("(traj_num, score) pairs: ", demos, file=f)
             print(scores, file=f)
             print(str(sum(scores)), file=f)
-            print("Average demonstration score", avg_score, file=f)
-            print("Maximum demonstration score", max_score, file=f)
+            print("Worst demonstration score: ", min_score, file=f)
+            print("Average demonstration score: ", avg_score, file=f)
+            print("Maximum demonstration score: ", max_score, file=f)
         return demos
 
     def preprocess(self, trajectories, screens):
@@ -254,8 +256,6 @@ class ChainerRLAtariDemoParser():
         self.outdir = outdir
         self.demo_pickle_file = demo_pickle_file
         self.mask = AtariMask(env, height=84, width=84)
-        # TODO: find out how TREX handles the synthetic demos.
-        # probably ensure we take the worst. Ensure the demos are different.
         self.num_demos = num_demos
 
         dataset = chainer.datasets.open_pickle_dataset(demo_pickle_file)

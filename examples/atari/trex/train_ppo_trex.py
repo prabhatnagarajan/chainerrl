@@ -9,6 +9,7 @@ To train PPO using a recurrent model on a flickering Atari env, run:
     python train_ppo_ale.py --recurrent --flicker --no-frame-stack
 """
 import argparse
+import json
 import operator
 from operator import xor
 import os
@@ -55,6 +56,8 @@ def main():
                         help='Interval (in timesteps) between evaluation'
                              ' phases.')
     parser.add_argument('--eval-n-runs', type=int, default=10,
+                        help='Number of episodes ran in an evaluation phase.')
+    parser.add_argument('--n-best-episodes', type=int, default=200,
                         help='Number of episodes ran in an evaluation phase.')
     parser.add_argument('--demo', action='store_true', default=False,
                         help='Run demo episodes, not training.')
@@ -150,17 +153,18 @@ def main():
                        for episode in ranked_episodes]
     demo_dataset = demonstration.RankedDemoDataset(ranked_episodes)
     assert sorted(episode_rewards) == episode_rewards
+    trex_network = TREXNet()
     if args.load_trex:
         from chainer import serializers
         serializers.load_npz(args.load_trex, trex_network)
     trex_reward = TREXReward(ranked_demos=demo_dataset,
                      steps=args.trex_steps,
-                     network=TREXNet(),
+                     network=trex_network,
                      train_network=(False if args.load_trex else True),
                      gpu=args.gpu,
                      outdir=args.outdir,
                      phi=phi,
-                     save_network=True)
+                     save_network=(False if args.load_trex else True))
 
     def make_env(idx, test):
         # Use different random seeds for train and test envs
@@ -303,6 +307,26 @@ def main():
             save_best_so_far_agent=True,
             step_hooks=step_hooks,
         )
+
+        dir_of_best_network = os.path.join(args.outdir, "best")
+        agent.load(dir_of_best_network)
+
+        stats = experiments.evaluator.eval_performance(
+            env=make_batch_env(True),
+            agent=agent,
+            n_steps=None,
+            n_episodes=args.n_best_episodes,
+            max_episode_len=args.max_frames/4,
+            logger=None)
+        with open(os.path.join(args.outdir, 'bestscores.json'), 'w') as f:
+            # temporary hack to handle python 2/3 support issues.
+            # json dumps does not support non-string literal dict keys
+            json_stats = json.dumps(stats)
+            print(str(json_stats), file=f)
+        print("The results of the best scoring network:")
+        for stat in stats:
+            print(str(stat) + ":" + str(stats[stat]))
+
 
 
 if __name__ == '__main__':
