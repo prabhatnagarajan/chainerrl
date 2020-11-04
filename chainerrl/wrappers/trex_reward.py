@@ -167,7 +167,11 @@ class TREXReward():
         rewards_j = [F.sum(self.trex_network(preprocessed['j'][i])) for i in range(len(preprocessed['j']))]
         rewards_i = F.expand_dims(F.stack(rewards_i), 1)
         rewards_j = F.expand_dims(F.stack(rewards_j), 1)
-        predictions = F.concat((rewards_i, rewards_j))
+        predictions = F.concat((rewards_i, rewards_j), axis=1)
+        print(predictions)
+        print(predictions.shape)
+        print(preprocessed['label'].shape)
+        print(preprocessed['label'])
         mean_loss = F.mean(F.softmax_cross_entropy(predictions,
                                                    preprocessed['label']))
         return mean_loss
